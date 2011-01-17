@@ -232,9 +232,52 @@ module RSpec
           }.to raise_error(MockExpectationError, "Cannot call_original if there is no original method")
         end
 
+        describe "return_block" do
+          before do
+            @class.class_eval do
+              def some_method
+                "method result"
+              end
+            end
+          end
+
+          it "evalutes in context of current example" do
+            example_context = self.class
+
+            @instance.stub(:some_method) do
+              self.is_a?(example_context).should be_true
+              call_original.should eql("method result")
+            end
+
+            @instance.some_method
+          end
+
+          it "allows to call call_original method only inside the block" do
+            @instance.stub(:some_method) { call_original }
+
+            respond_to?(:call_original).should be_false
+            @instance.some_method
+            respond_to?(:call_original).should be_false
+          end
+
+          it "doesn't creates conflict with call_original method of the context" do
+            self.instance_eval do
+              def call_original
+                "context method result"
+              end
+            end
+
+            call_original.should eql("context method result")
+            @instance.stub(:some_method) { call_original }
+            call_original.should eql("context method result")
+            @instance.some_method.should eql("method result")
+            call_original.should eql("context method result")
+          end
+
+        end
       end
     end
-    
+
     describe "A method stub with args" do
       before(:each) do
         @stub = Object.new
